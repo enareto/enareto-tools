@@ -1,0 +1,17 @@
+{
+  "name": "financial-skills",
+  "version": "0.1.0",
+  "description": "Financial planning skills for retirement projections, cash flow analysis, and tax-optimized withdrawal strategies",
+  "author": {
+    "name": "Enareto LLC"
+  },
+  "license": "MIT",
+  "keywords": [
+    "finance",
+    "retirement",
+    "financial-planning",
+    "monte-carlo",
+    "tax-optimization",
+    "withdrawal-strategy"
+  ]
+}
