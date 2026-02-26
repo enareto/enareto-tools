@@ -1,17 +1,9 @@
 ---
-name: enareto-financial-plan
-description: >
-  Build or update a retirement financial plan with cash flow projections, Monte Carlo analysis,
-  tax-optimized withdrawal strategies, and historical backtesting. Use whenever the user mentions
-  "financial plan", "retirement plan", "can I retire", "retirement projections", "cash flow analysis",
-  "withdrawal strategy", "Monte Carlo", "retirement income", "asset allocation", or discusses
-  retirement readiness. Also trigger when reviewing existing plans, running scenarios, comparing
-  withdrawal strategies, or modeling retirement spending. This skill embeds hard-won modeling
-  standards that prevent common errors which can swing results by 60+ percentage points.
-  Always use this skill for retirement-related financial modeling.
+name: retirement-projections
+description: "This skill should be used when the user asks about building or updating a retirement financial plan, cash flow projections, Monte Carlo analysis, tax-optimized withdrawal strategies, or historical backtesting. It covers scenarios where the user says things like 'can I retire', 'retirement projections', 'financial plan', 'withdrawal strategy', 'Roth conversion', '4% rule', 'safe withdrawal rate', 'how much do I need to retire', 'RMD planning', 'required minimum distributions', 'Social Security optimization', 'asset allocation for retirement', 'sequence of returns risk', 'retirement income', or 'cash flow analysis'. Also applicable when reviewing existing plans, running scenarios, comparing withdrawal strategies, or modeling retirement spending. Embeds modeling standards that prevent common errors which can swing results by 60+ percentage points."
 ---
 
-# Financial Plan Skill
+# Retirement Projections
 
 ## Why This Skill Exists
 
@@ -76,233 +68,38 @@ This is where most errors happen. Read `references/modeling-standards.md` for th
 
 #### Non-Negotiable Modeling Requirements
 
-These are not suggestions. Omitting any one of these can swing Monte Carlo results by 20-60 percentage points.
+These are not suggestions. Omitting any one of these can swing Monte Carlo results by 20-60 percentage points. Read `references/modeling-standards.md` for complete formulas and implementation details.
 
-**1. Social Security COLA (typically the single biggest error when omitted)**
-
-SS benefits grow with COLA every year — including years *before* the person starts claiming. The SSA statement shows today's estimate at FRA, but by the time the person actually claims (potentially 10-15 years from now), the benefit will have compounded by COLA^years.
-
-```
-actual_benefit(year) = today_estimate × (1 + COLA)^(year - 1)
-```
-
-Use 2.5%/year as COLA default (historical average ~2.6%). This is applied from today, compounding every year, whether or not the person has started claiming.
-
-**Why this matters:** For a couple claiming SS 12-15 years from now, COLA can increase their combined SS by 35-45% vs. the stated estimate. This is often the difference between "can't retire" and "already fine."
-
-**2. Progressive Federal Tax Brackets (MFJ 2025)**
-
-Never use a flat tax rate. The difference between a flat 25% and progressive brackets can be $15-30K/year in tax, compounding over decades.
-
-```
-Brackets (MFJ): $23,850 @ 10%, $73,150 @ 12%, $109,700 @ 22%,
-$187,900 @ 24%, $106,450 @ 32%, $250,550 @ 35%, remainder @ 37%
-```
-
-Standard deduction MFJ: ~$30,000. Always apply it.
-
-**3. 401(k) Contributions Reduce Taxable Income**
-
-Pre-tax 401(k) contributions are not "savings from after-tax income." They reduce W-2 taxable income directly. For a couple maxing 401(k) with catch-up ($30,500/person for 50+), that's $61,000/year of income that never gets taxed at their marginal rate.
-
-```
-w2_taxable = gross_salary - employee_401k_contributions
-```
-
-Also model employer match as additional savings (typically 3-6% of salary), not additional taxable income to the employee in the contribution year.
-
-**4. FICA Taxes**
-
-- Social Security: 6.2% on wages up to $168,600 (2025 cap)
-- Medicare: 1.45% on all wages
-- Additional Medicare: 0.9% on wages > $250,000 (MFJ)
-
-These stop in retirement (no FICA on withdrawals or SS income), which is a meaningful tax reduction that the model should reflect.
-
-**5. Social Security Benefit Taxation**
-
-SS benefits are taxed based on "combined income" (AGI + nontaxable interest + 50% of SS):
-- Combined < $32,000: 0% of SS taxable
-- $32,000-$44,000: up to 50% taxable
-- > $44,000: up to 85% taxable
-
-Most retirees with other income sources will have 85% of SS taxable. Model this — don't just add SS as tax-free income.
-
-**6. Salary Growth**
-
-Salaries are not frozen. Use 3%/year (inflation + typical merit). Over 10 pre-retirement years, this means final salary is ~34% higher than current, which means more 401(k) contributions, more savings, and higher SS benefits.
-
-**7. Realistic Retirement Spending Curve (Obligatory vs. Discretionary)**
-
-People do not spend a flat inflation-adjusted amount for 30 years. Research (Blanchett's "retirement spending smile", Bernicke, JP Morgan data) consistently shows spending follows three phases. But you need to model the *composition* of spending, not just the total:
-
-**Obligatory spending** (housing, healthcare, food, utilities, insurance, debt) stays relatively constant in real terms, then shifts: mortgage may pay off (big drop), but healthcare rises with age. Model obligatory as a separate floor that only changes at known events (mortgage payoff, Medicare eligibility, LTC onset).
-
-**Discretionary spending** (travel, dining, hobbies, gifts) is what actually follows the go-go/slow-go/no-go curve:
-- **Go-go (65-74):** Peak discretionary — travel, dining, hobbies. This is the spending people actually enjoy.
-- **Slow-go (75-84):** Discretionary declines 3-5%/year as activity naturally decreases.
-- **No-go (85+):** Discretionary drops to minimal. Mostly obligatory + healthcare.
-
-```
-total_spending(year) = obligatory(year) + discretionary(year) + one_time_expenses(year)
-```
-
-**Why this separation matters:** It changes how guardrails work (see #8). When markets crash, you cut travel, not the mortgage payment. The spending floor should be obligatory expenses only.
-
-**8. Dynamic Spending Guardrails (Discretionary-Aware)**
-
-When guardrails trigger, they should only cut or boost *discretionary* spending. Obligatory spending is non-negotiable.
-
-```
-if portfolio < obligatory_expenses * 20:  # Severe stress
-    discretionary = 0  # Eliminate all discretionary
-elif portfolio < total_expenses * 15:     # Moderate stress
-    discretionary *= 0.70                 # Cut 30% of discretionary
-elif portfolio > total_expenses * 35:     # Surplus
-    discretionary *= 1.20                 # Boost 20% of discretionary
-
-spending_floor = obligatory_expenses  # Never cut below this
-spending_ceiling = obligatory + max_discretionary * 1.3
-```
-
-This is more realistic than cutting total spending by 15% — because nobody cuts their mortgage payment by 15% when the market drops.
-
-**9. One-Time Expenses**
-
-Major one-time costs must be modeled as lump-sum withdrawals in specific years, not smoothed into annual spending. They hit the portfolio at a specific point, and if that point coincides with a market downturn, the impact is amplified by sequence-of-returns risk.
-
-```python
-one_time_expenses = [
-    {"year": 3,  "amount": 50_000,  "description": "Car replacement",  "source": "taxable"},
-    {"year": 5,  "amount": 180_000, "description": "Child 1 college (4 yr)", "source": "529_then_taxable"},
-    {"year": 8,  "amount": 40_000,  "description": "Home renovation",  "source": "taxable"},
-    {"year": 13, "amount": 160_000, "description": "Child 2 college (4 yr)", "source": "529_then_taxable"},
-    {"year": 15, "amount": 50_000,  "description": "Car replacement",  "source": "taxable"},
-]
-```
-
-For each one-time expense, specify the **funding source** — which account it comes from. College from 529 plans (tax-free for education), cars from taxable accounts (capital gains treatment), etc. The tax impact depends on the source.
-
-**In Monte Carlo:** One-time expenses must appear in every simulation at the same year. They are deterministic events, not random. The portfolio state when they hit is what varies across simulations, which is exactly why they matter for risk assessment.
-
-**10. State Income Taxes — Use Real Brackets, Not a Flat Rate**
-
-Never use a flat "5% state tax" assumption. State taxes range from 0% (FL, TX, WA, NV, etc.) to 13.3% (California top bracket). This can swing after-tax retirement income by $15-40K/year.
-
-Read `references/state-taxes.md` for the complete bracket structure of all 50 states + DC. Key points:
-- **Always ask the user's state.** If they plan to relocate in retirement, model both states with the transition year.
-- Use progressive brackets where applicable (CA, NY, NJ, OR, MN, etc.)
-- Many states don't tax SS benefits — check before including SS in state taxable income
-- Some states (PA, IL, MS) don't tax retirement distributions at all — huge for traditional 401(k) withdrawals
-- Don't forget local/city taxes: NYC adds 3-4%, MD counties add 2-3%, many OH cities add 2.5%
-
-**11. Capital Gains Taxes — Not Everything Is Ordinary Income**
-
-Taxable account withdrawals are NOT taxed as ordinary income. They're subject to capital gains rates, which can be 0%, 15%, or 20% — far lower than the 22-37% ordinary rates the model may be applying.
-
-Read `references/capital-gains-taxes.md` for complete implementation. Critical points:
-- Only the *gain* portion of a taxable withdrawal is taxed, not the full amount. The cost basis is returned tax-free.
-- **The 0% LTCG bracket** (up to ~$96,700 MFJ taxable income) is a major planning opportunity. Many early retirees can realize tens of thousands in capital gains completely tax-free.
-- Qualified dividends in taxable accounts are also taxed at LTCG rates, not ordinary rates.
-- Net Investment Income Tax (NIIT) adds 3.8% on investment income above $250K AGI (MFJ).
-- Most states tax capital gains as ordinary income — the federal preferential rate is what matters.
-
-**Why this matters for withdrawal strategies:** The correct capital gains treatment makes taxable accounts significantly cheaper to draw from than the model assumes without it. This reinforces taxable-first ordering but also creates tax-gain harvesting opportunities in the 0% bracket.
-
-**12. Required Minimum Distributions (RMDs)**
-
-Starting at age 73 (born 1951-1959) or 75 (born 1960+), the IRS forces annual withdrawals from traditional accounts. These are taxed as ordinary income whether or not the client needs the money.
-
-Read `references/rmd-rules.md` for the full Uniform Lifetime Table and implementation. Critical points:
-- `RMD = Prior Year-End Traditional Balance / Distribution Period`
-- The distribution period shrinks each year: from 26.5 at age 73 to 12.2 at age 90 to 6.4 at age 100
-- A $3M traditional balance at 73 generates ~$113K/year in forced taxable income, growing to $185K+ by 85
-- RMDs stack on top of SS income, potentially pushing the client into the 24-32% bracket on income they didn't choose to take
-- RMDs interact with SS taxation (push more SS into 85% taxable), IRMAA (Medicare premium surcharges), and capital gains brackets (reduce 0% LTCG room)
-- **Every dollar converted to Roth before RMD age is a dollar that never generates forced distributions.** This is the quantitative argument for gap-year Roth conversions.
-- Roth IRAs have NO RMDs for the original owner
-- If the RMD exceeds spending needs, the excess must still be withdrawn, taxed, and can be reinvested in taxable accounts
-
-The model must compute RMDs each year starting at the applicable age and treat them as the *minimum* traditional withdrawal. If spending needs require more than the RMD, withdraw the larger amount. If the RMD exceeds spending needs, model the excess as after-tax reinvestment into the taxable account.
+| # | Requirement | Impact if Omitted |
+|---|-------------|-------------------|
+| 1 | **Social Security COLA** — compound benefits at ~2.5%/year from today, not just from claiming date | 20-40pp MC swing; 35-45% benefit underestimate |
+| 2 | **Progressive federal tax brackets** — use MFJ brackets + standard deduction, never a flat rate | $15-30K/year tax error |
+| 3 | **401(k) reduces taxable income** — deduct pre-tax contributions from W-2 income | Portfolio 15-25% low at retirement |
+| 4 | **FICA taxes** — model SS/Medicare tax on wages; note these stop in retirement | Overstates retirement taxes |
+| 5 | **Social Security benefit taxation** — up to 85% of SS is taxable based on combined income | Understates retirement taxes |
+| 6 | **Salary growth** — use 3%/year (inflation + merit); final salary ~34% higher over 10 years | Under-saves $200-400K |
+| 7 | **Obligatory vs. discretionary spending** — separate spending into non-negotiable floor and flexible discretionary with go-go/slow-go/no-go phases | Underspends early, overspends late |
+| 8 | **Dynamic spending guardrails** — cut/boost only discretionary spending; obligatory is the floor | 10-20pp MC swing |
+| 9 | **One-time expenses** — model as lump-sum withdrawals in specific years with funding source, not smoothed | Misses sequence-of-returns risk |
+| 10 | **State income taxes** — use real progressive brackets from `references/state-taxes.md`, never a flat rate | $15-40K/year swing |
+| 11 | **Capital gains taxes** — taxable withdrawals use LTCG rates (0/15/20%), not ordinary income rates; see `references/capital-gains-taxes.md` | Overestimates taxable account cost |
+| 12 | **Required Minimum Distributions** — model forced withdrawals from traditional accounts starting at 73/75; see `references/rmd-rules.md` | Misses forced taxable income, bracket creep |
 
 ### Step 3: Withdrawal Strategy Analysis
 
-The order in which you pull from different account types (traditional, Roth, taxable) materially affects lifetime taxes paid and portfolio longevity. Do not assume a single strategy — model and compare at least three.
+The order of withdrawals from different account types (traditional, Roth, taxable) materially affects lifetime taxes and portfolio longevity. Model and compare at least three strategies. Read `references/withdrawal-strategies.md` for full implementation.
 
-Read `references/withdrawal-strategies.md` for full implementation. Summary:
+Strategies to compare: **Conventional** (taxable → traditional → Roth), **Tax-Bracket Optimized** (fill low brackets from traditional, remainder from Roth/taxable), **Proportional** (withdraw proportionally from all accounts), and **Roth-Bridge** (heavy traditional/taxable draws during low-income gap years before SS). Tax-bracket optimization typically saves $50-200K in lifetime taxes vs. conventional ordering.
 
-**Strategy 1: Conventional (Taxable → Traditional → Roth)**
-The textbook approach. Depletes taxable first (lower tax rate on capital gains), then traditional (ordinary income), Roth last (tax-free). Simple but often suboptimal because it ignores bracket management.
-
-**Strategy 2: Tax-Bracket Optimized**
-Each year, compute the marginal tax rate and fill brackets optimally:
-- First, compute income from SS, pensions, annuities, and any required distributions
-- Then withdraw from traditional up to the top of the current bracket (e.g., fill the 12% or 22% bracket)
-- Take remaining needs from Roth (tax-free) or taxable (capital gains rate)
-- During low-income years, actively convert traditional to Roth to fill low brackets
-
-This typically saves $50-200K in lifetime taxes vs. conventional ordering by keeping the client in lower brackets throughout retirement.
-
-**Strategy 3: Proportional**
-Withdraw proportionally from all account types based on their share of total portfolio. Simple, maintains tax diversification, but doesn't optimize brackets.
-
-**Strategy 4: Roth-Bridge (for early retirees)**
-If retiring before SS starts (common 2-5 year gap): draw heavily from traditional/taxable during the gap years when taxable income is very low, potentially convert to Roth simultaneously. Then switch to minimal withdrawals once SS provides income. The gap years are a tax optimization gift — don't waste them.
-
-**How to compare:** Run the full projection with each strategy and report:
-- Total lifetime taxes paid
-- Final portfolio value
-- Monte Carlo success rate
-- Year-by-year effective tax rate (to verify bracket management is working)
-
-Present the comparison to the user with the recommended strategy highlighted and an explanation of why it wins.
+For each strategy, report: total lifetime taxes, final portfolio value, Monte Carlo success rate, and year-by-year effective tax rate. Present the comparison with the recommended strategy highlighted.
 
 ### Step 4: Asset Allocation Strategy
 
-Do not assume a static 60/40. Read `references/allocation-strategies.md` for full implementation. Model and compare at least two approaches.
+Do not assume a static 60/40. Model and compare at least two approaches. Read `references/allocation-strategies.md` for full implementation.
 
-**Strategy 1: Static Allocation**
-Fixed stock/bond/cash split maintained throughout. Simple, easy to implement.
-- Conservative: 40/50/10
-- Moderate: 60/35/5
-- Aggressive: 80/15/5
+Strategies to compare: **Static Allocation** (fixed split), **Age-Based Glide Path** (declining equity), **Rising Equity Glide Path** (Kitces/Pfau — start conservative at 30-40%, increase to 60-70% by age 80+, reducing sequence-of-returns risk), and **Bucket Strategy** (time-based buckets: cash for years 1-3, bonds for 4-10, equities for 11+).
 
-**Strategy 2: Age-Based Glide Path (declining equity)**
-Classic "100 minus age" or "120 minus age" for stocks. Reduces equity exposure as the person ages.
-```
-stock_pct = max(min(120 - age, 90), 20) / 100
-bond_pct = 1 - stock_pct - 0.05  # Keep 5% cash
-```
-Intuitive but research shows it may not be optimal for retirees (see Strategy 3).
-
-**Strategy 3: Rising Equity Glide Path (Kitces/Pfau research)**
-Counterintuitive but mathematically sound: start retirement with *lower* equity (30-40%), then gradually *increase* to 60-70% by age 80+.
-
-The reasoning: sequence-of-returns risk is concentrated in the first 10 years of retirement. If markets crash early, a high equity allocation devastates the portfolio when withdrawals are highest relative to portfolio size. Starting conservative and increasing equity later means:
-- Less damage from early crashes (when it matters most)
-- More growth exposure later (when SS covers most expenses and withdrawals are minimal)
-- The portfolio has already survived the danger zone
-
-```python
-def rising_glide(years_in_retirement):
-    start_equity = 0.35   # Conservative start
-    end_equity = 0.65     # Growth finish
-    ramp_years = 15       # Transition period
-    t = min(years_in_retirement / ramp_years, 1.0)
-    return start_equity + (end_equity - start_equity) * t
-```
-
-**Strategy 4: Bucket Strategy**
-Divide portfolio into time-based buckets:
-- **Bucket 1 (Years 1-3):** Cash/short-term bonds. Covers near-term spending. No market risk.
-- **Bucket 2 (Years 4-10):** Intermediate bonds, dividend stocks. Moderate growth.
-- **Bucket 3 (Years 11+):** Growth equities. Long time horizon, maximum growth.
-
-Refill Bucket 1 from Bucket 2 annually; refill Bucket 2 from Bucket 3 when markets are up. Skip refill when markets are down (let Bucket 1 absorb the shock).
-
-This is psychologically appealing because the client can see 3 years of cash and never panics. Mathematically similar to a rising glide path with dynamic rebalancing.
-
-**How to compare:** Run Monte Carlo with each strategy on the same client data. Report success rate, median final portfolio, and worst-case (10th percentile). The right strategy depends on the client — a nervous client benefits from buckets; an analytical client may prefer bracket-optimized rising glide path.
+Run Monte Carlo with each strategy on the same client data. Report success rate, median final portfolio, and worst-case (10th percentile). The right strategy depends on the client.
 
 ### Step 5: Validate Before Presenting
 

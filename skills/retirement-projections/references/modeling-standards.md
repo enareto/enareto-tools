@@ -85,7 +85,7 @@ def federal_tax_mfj(taxable_income):
 
 **Standard deduction (MFJ 2025):** ~$30,000. Always subtract before computing tax.
 
-**State tax:** Ask for state. If unknown, use 5% flat as placeholder and flag it.
+**State tax:** Ask for the user's state. Look up the correct brackets in `references/state-taxes.md`. Never use a flat rate as placeholder.
 
 ---
 
