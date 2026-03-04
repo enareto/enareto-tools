@@ -9,7 +9,7 @@
   "plugins": [
     {
       "name": "financial-skills",
-      "source": "./plugins",
+      "source": "./plugins/financial-skills",
       "description": "Retirement projections with Monte Carlo simulation, tax-optimized withdrawal strategies, and cash flow analysis",
       "version": "0.1.0"
     }
