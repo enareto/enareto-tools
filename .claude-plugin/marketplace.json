@@ -1,0 +1,17 @@
+{
+  "name": "financial-skills",
+  "owner": {
+    "name": "Enareto LLC"
+  },
+  "metadata": {
+    "description": "Financial planning skills for retirement projections, cash flow analysis, and tax-optimized withdrawal strategies"
+  },
+  "plugins": [
+    {
+      "name": "financial-skills",
+      "source": "./",
+      "description": "Retirement projections with Monte Carlo simulation, tax-optimized withdrawal strategies, and cash flow analysis",
+      "version": "0.1.0"
+    }
+  ]
+}
