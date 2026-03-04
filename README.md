@@ -2,6 +2,9 @@
 
 A plugin marketplace for [Claude Code](https://docs.anthropic.com/en/docs/claude-code) and [Claude Cowork](https://claude.com/cowork) providing specialized financial planning skills. Each skill encodes domain expertise, modeling standards, and validation tooling that prevent common errors in financial modeling.
 
+*** DISCLAIMER ***: The skill just allows an AI to create a more structured plan. This is by no means financial advice. AI can make
+mistakes. Use the output to discuss with a financial advisor or other professional. Use at your own risk. 
+
 ## Installation
 
 Add the marketplace:
