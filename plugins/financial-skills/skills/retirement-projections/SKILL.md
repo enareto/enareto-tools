@@ -209,99 +209,17 @@ Use the docx skill. Include:
 - Disclaimer
 
 **2. Excel Workbook (Interactive Financial Model)**
-Use the xlsx skill. This workbook must be **formula-driven** — every computed cell uses Excel formulas referencing input cells, not hardcoded values. The user must be able to change any assumption and see the entire model recalculate automatically.
+Use the xlsx skill. Include sheets for:
+- Year-by-year projection (primary plan): year, ages, phase, salary, 401k contributions, SS income, obligatory expenses, discretionary expenses, one-time expenses, total expenses, taxes, withdrawals by account type, balances, withdrawal rate, guaranteed income coverage %
+- Withdrawal strategy comparison (side-by-side lifetime tax totals)
+- Allocation strategy comparison
+- Alternative scenario (with annuity, or without dynamic, etc.)
+- Historical backtest summary (worst/median/best starting years)
+- Monte Carlo summary
+- Key milestones
+- Assumptions (all inputs, stated explicitly with notes)
 
-**Sheet 1: Inputs & Assumptions**
-This is the control panel. Every adjustable parameter lives here in clearly labeled, grouped sections. All other sheets reference these cells by name or cell reference — never by duplicated values.
-
-Layout by section:
-- **Personal**: ages, retirement ages, life expectancy, state of residence
-- **Income**: current salaries (each person), salary growth rate, employer match %
-- **Social Security**: FRA benefit estimates (each person), claiming ages, COLA rate
-- **Accounts**: current balances by type (traditional 401k/IRA, Roth, taxable, 529, cash), current allocation %, cost basis for taxable accounts
-- **Contributions**: 401k contribution amounts, IRA contributions, catch-up amounts
-- **Spending**: obligatory expenses (itemized: housing, healthcare, food, utilities, insurance, debt), discretionary expenses (itemized: travel, dining, entertainment, hobbies, gifts), mortgage payoff year
-- **One-Time Expenses**: table with year, amount, description, funding source for each planned lump sum (college, cars, renovations, etc.)
-- **Tax Parameters**: federal bracket thresholds, standard deduction, FICA caps, SS taxation thresholds, state tax brackets (or reference to state), LTCG bracket thresholds, NIIT threshold
-- **Model Parameters**: inflation rate, COLA rate, discretionary decline rates (slow-go, no-go), guardrail thresholds (severe/moderate/surplus portfolio multiples), guardrail adjustment percentages
-- **Return Assumptions**: expected return and volatility for stocks, bonds, cash (used by Monte Carlo)
-- **Withdrawal Strategy**: selector or flag indicating which strategy to use (conventional, bracket-optimized, proportional, Roth-bridge)
-- **Allocation Strategy**: starting allocation %, glide path parameters if applicable
-
-Mark all user-editable cells with a distinct background color (light yellow) and protect formula cells. Add a notes column or cell comments explaining each parameter, its default, and why it matters.
-
-**Sheet 2: Year-by-Year Projection**
-One row per year from now through end of plan (age 95-100). Every cell is a formula referencing the Inputs sheet or the row above.
-
-Columns (all formula-driven):
-- Year, age(s), phase (accumulation/go-go/slow-go/no-go)
-- Gross salary (prior year × salary growth from Inputs)
-- 401k contributions (from Inputs, capped at IRS limits)
-- Taxable W-2 income (salary - 401k contributions)
-- Federal tax (progressive bracket formula referencing Inputs thresholds)
-- State tax (bracket formula referencing Inputs state brackets)
-- FICA (SS tax capped at wage base + Medicare + additional Medicare)
-- Net take-home, annual savings to taxable account
-- Social Security income (FRA estimate × COLA^years, starting at claiming age)
-- SS taxable portion (combined income formula)
-- Obligatory spending (from Inputs, adjusted for known events like mortgage payoff)
-- Discretionary spending (from Inputs, with phase-based decline formulas and guardrail adjustments)
-- One-time expenses (VLOOKUP or INDEX/MATCH against the one-time expenses table)
-- Total spending
-- Withdrawal need (total spending + taxes - SS - pension - other income)
-- Withdrawals by account type (formula implementing the selected withdrawal strategy)
-- RMD calculation (traditional balance / distribution period, starting at applicable age)
-- Account balances (prior balance + contributions + returns - withdrawals)
-- Total portfolio
-- Withdrawal rate (withdrawals / prior year portfolio)
-- Guaranteed income coverage % (SS + pensions + annuities / obligatory spending)
-
-**Sheet 3: Withdrawal Strategy Comparison**
-Four parallel projection columns (one per strategy) sharing the same inputs. Each column computes: total lifetime taxes, final portfolio, and year portfolio hits zero (if ever). Use formulas that switch withdrawal logic per strategy. Summary row at top showing the comparison.
-
-**Sheet 4: Allocation Strategy Comparison**
-Same structure as Sheet 3 but varying the allocation (static, glide path, rising equity, bucket). Show how allocation affects returns applied to each year's portfolio.
-
-**Sheet 5: Monte Carlo Simulation**
-Build a simulation engine using Excel formulas:
-- Use `NORMINV(RAND(), mean_return, volatility)` to generate random annual returns per asset class
-- Create N simulation columns (at minimum 200; more if performance allows) each running the full year-by-year projection with randomized returns
-- Each column references the same Inputs sheet for spending, taxes, and withdrawals — only the returns vary
-- Bottom of each column: flag success/failure (portfolio > 0 at end, or guaranteed income covers 60%+ of expenses)
-- Summary section: success rate (`COUNTIF`), median final portfolio (`MEDIAN`), 10th percentile (`PERCENTILE`), 25th percentile
-- Press F9 (recalculate) to re-run all simulations with new random draws
-
-If 200 columns creates performance issues, use fewer columns with a note explaining that the user can press F9 to resample. The key is that the simulation is live and responsive to input changes.
-
-**Sheet 6: Historical Backtest**
-One column per starting year (1928-present or as far back as data allows). Each column runs the projection using actual historical returns from `references/historical-returns.md` hardcoded as a return lookup table on a helper row or separate data sheet.
-- Summary: survival count, worst starting year, best starting year, median final portfolio
-- The spending/tax/withdrawal formulas still reference the Inputs sheet, so changing assumptions re-runs all historical scenarios
-
-**Sheet 7: Key Milestones & Summary**
-Formula-driven dashboard referencing other sheets:
-- Portfolio at retirement, at age 75, 85, 95
-- Year SS exceeds obligatory spending
-- Recommended withdrawal strategy (highlight the winner from Sheet 3)
-- Monte Carlo success rate (from Sheet 5)
-- Historical backtest survival rate (from Sheet 6)
-- Effective tax rate by decade
-
-**Sheet 8: Reference Data**
-Static data tables used by formulas in other sheets:
-- Federal tax brackets (so bracket formulas can use VLOOKUP)
-- State tax brackets
-- RMD Uniform Lifetime Table (age → distribution period)
-- Historical returns by year (stocks, bonds, cash) for the backtest
-- FICA thresholds and rates
-
-**Formatting:**
-- Color-code spending phases (go-go green, slow-go blue, no-go pink)
-- Highlight one-time expenses in yellow
-- Mark the year SS exceeds obligatory spending
-- User-editable cells in light yellow background on the Inputs sheet
-- Protect all formula cells to prevent accidental overwrites
-- Freeze header rows and label columns clearly
+Color-code spending phases (go-go green, slow-go blue, no-go pink). Highlight one-time expenses in yellow. Mark the year SS exceeds obligatory spending. Show the withdrawal strategy comparison clearly.
 
 ---
 
